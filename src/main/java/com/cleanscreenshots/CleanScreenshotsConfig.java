@@ -103,9 +103,9 @@ public interface CleanScreenshotsConfig extends Config
 	@ConfigItem(
 		keyName = "retakeAutomatic",
 		name = "Clean all other screenshots",
-		description = "When the Screenshot plugin saves any other automatic picture (level-ups, kills,<br>"
-			+ "pets, drops, deaths, chests, clues...), pause and save a clean retake over it a moment later.<br>"
-			+ "Only its own folders are touched, and only if the clean picture is the same size.",
+		description = "When the Screenshot plugin saves any other picture (level-ups, kills, pets, drops,<br>"
+			+ "deaths, chests, clues, its own hotkey...), pause and save a clean copy next to it a moment later,<br>"
+			+ "named like the original with \"clean\" added. The original is kept.",
 		section = automaticSection,
 		position = 1
 	)
