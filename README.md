@@ -8,8 +8,7 @@ overlays stay out of the picture, then starts them again.
 - **Clean screenshot button and hotkey.** Adds a second camera button to the title bar and an
   optional hotkey. Either one pauses your chosen plugins, takes a screenshot, and resumes them.
   The picture is saved exactly as the built-in Screenshot plugin would save it: same folder, and
-  the same frame, date, notification and clipboard settings. Right-click the button to open the
-  screenshot folder.
+  the same frame, date, notification and clipboard settings.
 - **Clean pop-up screenshots.** When a pop-up the built-in Screenshot plugin will photograph
   opens (collection log, combat task, league task), your chosen plugins are paused before it
   appears and resumed just after the picture is taken.
