@@ -5,10 +5,7 @@ import com.google.inject.Provides;
 import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.Image;
-import java.awt.Toolkit;
 import java.awt.image.BufferedImage;
-import java.io.File;
-import java.io.IOException;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -21,11 +18,11 @@ import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import javax.imageio.ImageIO;
 import javax.inject.Inject;
 import javax.swing.SwingUtilities;
 import lombok.extern.slf4j.Slf4j;
@@ -94,11 +91,8 @@ public class CleanScreenshotsPlugin extends Plugin
 		"Friends Chat Kicks", "Pets", "Chest Loot", "Valuable Drops", "Untradeable Drops", "Duels",
 		"Collection Log", "PvP Kills", "Deaths", "Combat Achievements", "Wilderness Loot Chest", "League Tasks");
 
-	/** Key used for the Screenshot plugin's own hotkey and button pictures, which go in the player folder. */
-	static final String MANUAL_FOLDER = "";
-
-	/** A file name that is only a timestamp, as the Screenshot plugin's hotkey and button save. */
-	private static final Pattern TIMESTAMP_ONLY = Pattern.compile("\\d{4}-\\d{2}-\\d{2}_\\d{2}-\\d{2}-\\d{2}(\\(\\d+\\))?\\.png");
+	/** The date and time RuneLite adds to every screenshot name, with any "(1)" duplicate number. */
+	private static final Pattern NAME_TIMESTAMP = Pattern.compile("(^| )\\d{4}-\\d{2}-\\d{2}_\\d{2}-\\d{2}-\\d{2}(\\(\\d+\\))?\\.png$");
 
 	/** Folders of the pop-up pictures that are made clean by pausing beforehand. */
 	static final Set<String> POPUP_FOLDERS = ImmutableSet.of("Collection Log", "Combat Achievements", "League Tasks");
@@ -384,58 +378,22 @@ public class CleanScreenshotsPlugin extends Plugin
 			return;
 		}
 
-		File file = event.getPath();
-		BufferedImage image = event.getScreenshot();
-		String folder = coreFolderOf(file);
-		if (folder == null || image == null)
+		RetakeTarget target = RetakeTarget.of(String.valueOf(event.getPath()), String.valueOf(SCREENSHOT_DIR));
+		if (target == null || event.getScreenshot() == null)
 		{
 			return;
 		}
 
-		if (POPUP_FOLDERS.contains(folder) && now() <= popupCleanUntilMs)
+		if (target.subDir != null && POPUP_FOLDERS.contains(target.subDir) && now() <= popupCleanUntilMs)
 		{
 			return; // taken while paused for the pop-up: already clean
 		}
 
 		synchronized (pendingRetakes)
 		{
-			pendingRetakes.add(new RetakeTarget(file, image.getWidth(), image.getHeight()));
+			pendingRetakes.add(target);
 		}
 		onEdt(this::startRetakeRound);
-	}
-
-	/**
-	 * Which of the Screenshot plugin's folders the file is in: a folder name, MANUAL_FOLDER for a hotkey or
-	 * button picture in the player folder, or null for anything else (never touched).
-	 */
-	static String coreFolderOf(File file)
-	{
-		if (file == null || !file.getName().toLowerCase().endsWith(".png"))
-		{
-			return null;
-		}
-		File folder = file.getParentFile();
-		if (folder == null)
-		{
-			return null;
-		}
-		if (isScreenshotDir(folder.getParentFile()))
-		{
-			// Directly in the player folder: only the Screenshot plugin's plain timestamp names.
-			return TIMESTAMP_ONLY.matcher(file.getName()).matches() ? MANUAL_FOLDER : null;
-		}
-		File playerFolder = folder.getParentFile();
-		if (playerFolder == null || !isScreenshotDir(playerFolder.getParentFile()) || !CORE_FOLDERS.contains(folder.getName()))
-		{
-			return null;
-		}
-		return folder.getName();
-	}
-
-	private static boolean isScreenshotDir(File dir)
-	{
-		return dir != null
-			&& dir.getAbsoluteFile().toPath().normalize().equals(SCREENSHOT_DIR.getAbsoluteFile().toPath().normalize());
 	}
 
 	private void startRetakeRound()
@@ -577,36 +535,19 @@ public class CleanScreenshotsPlugin extends Plugin
 			return;
 		}
 
-		boolean replaced = false;
-		for (RetakeTarget target : targets)
+		// Saved through RuneLite as a second picture next to the original, which is left as it is.
+		SAVING_OWN.set(true);
+		try
 		{
-			if (picture.getWidth() != target.width || picture.getHeight() != target.height || !target.file.isFile())
+			for (RetakeTarget target : targets)
 			{
-				// Window resized, or not a plain full-screen picture: leave the original alone.
-				log.debug("Not replacing {}: size differs or file gone", target.file);
-				continue;
-			}
-			try
-			{
-				ImageIO.write(picture, "PNG", target.file);
-				replaced = true;
-			}
-			catch (IOException e)
-			{
-				log.warn("Could not save clean retake over {}", target.file, e);
+				imageCapture.saveScreenshot(picture, target.cleanName(), target.subDir,
+					false, screenshotConfig.copyToClipboard());
 			}
 		}
-
-		if (replaced && screenshotConfig.copyToClipboard())
+		finally
 		{
-			try
-			{
-				Toolkit.getDefaultToolkit().getSystemClipboard().setContents(new ImageTransferable(picture), null);
-			}
-			catch (RuntimeException e)
-			{
-				log.debug("Could not copy clean retake to the clipboard", e);
-			}
+			SAVING_OWN.set(false);
 		}
 	}
 
@@ -874,18 +815,60 @@ public class CleanScreenshotsPlugin extends Plugin
 		}
 	}
 
-	/** A Screenshot plugin picture waiting for its clean retake. */
-	private static final class RetakeTarget
+	/** A Screenshot plugin picture waiting for its clean copy. */
+	static final class RetakeTarget
 	{
-		final File file;
-		final int width;
-		final int height;
+		/** The Screenshot plugin folder, or null for a hotkey or button picture in the player folder. */
+		final String subDir;
+		/** The picture's name without RuneLite's date and time, e.g. "Zulrah(100)"; empty for hotkey pictures. */
+		final String name;
 
-		RetakeTarget(File file, int width, int height)
+		private RetakeTarget(String subDir, String name)
 		{
-			this.file = file;
-			this.width = width;
-			this.height = height;
+			this.subDir = subDir;
+			this.name = name;
+		}
+
+		String cleanName()
+		{
+			return name.isEmpty() ? "Clean" : name + " clean";
+		}
+
+		/**
+		 * Reads a saved screenshot's path: screenshots/player/[folder/]name date.png. Returns null unless it is
+		 * one of the Screenshot plugin's own pictures. Only the text of the path is used.
+		 */
+		static RetakeTarget of(String path, String screenshotDir)
+		{
+			if (path == null || screenshotDir == null || !path.startsWith(screenshotDir)
+				|| path.length() <= screenshotDir.length() + 1)
+			{
+				return null;
+			}
+			char separator = path.charAt(screenshotDir.length());
+			if (separator != '/' && separator != '\\')
+			{
+				return null; // a different folder whose name starts the same
+			}
+			String[] parts = path.substring(screenshotDir.length() + 1).split("[/\\\\]");
+			String fileName = parts[parts.length - 1];
+			Matcher stamp = NAME_TIMESTAMP.matcher(fileName);
+			if (!stamp.find())
+			{
+				return null;
+			}
+			String name = fileName.substring(0, stamp.start());
+
+			if (parts.length == 2)
+			{
+				// Player folder: only the Screenshot plugin's hotkey and button pictures, which are just a date.
+				return name.isEmpty() ? new RetakeTarget(null, "") : null;
+			}
+			if (parts.length == 3 && CORE_FOLDERS.contains(parts[1]))
+			{
+				return new RetakeTarget(parts[1], name);
+			}
+			return null;
 		}
 	}
 }
