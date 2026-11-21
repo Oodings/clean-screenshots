@@ -14,8 +14,8 @@ overlays stay out of the picture, then starts them again.
   appears and resumed just after the picture is taken.
 - **Clean all other screenshots.** Every other picture the built-in Screenshot plugin takes
   (level-ups, quests, kills, pets, drops, deaths, chests, clues, its own button and hotkey and so
-  on) is retaken a moment later with your chosen plugins paused, and the clean picture replaces
-  the original in the same file.
+  on) is retaken a moment later with your chosen plugins paused, and saved as a clean copy next to
+  the original, e.g. `Zulrah(100) clean 2026-11-21_13-45-12.png`. The original is kept.
 
 Only screenshots the built-in Screenshot plugin is set to take are affected, and it keeps working
 exactly as before.
@@ -32,13 +32,12 @@ exactly as before.
 ## Good to know
 
 - Paused plugins restart fresh, so anything they were tracking (timers, counters) starts again.
-- A retake is taken a moment after the original (the **Delay before picture** setting), so it can
-  show a slightly later moment. It only replaces pictures in the Screenshot plugin's own folders,
-  and only if the clean picture is the same size, so resizing the window in between keeps the
-  original.
-- Other plugins that react to new screenshots (for example ones that post them elsewhere) still
-  receive the original picture of an automatic screenshot. Pictures from this plugin's own button
-  and hotkey are clean from the start.
+- A clean copy is taken a moment after the original (the **Delay before picture** setting), so it
+  can show a slightly later moment. Copies are only made for pictures in the Screenshot plugin's own
+  folders.
+- Clean copies are saved through RuneLite like any other screenshot, so plugins that react to new
+  screenshots (for example ones that post them elsewhere) receive both the original and the clean
+  copy. Pictures from this plugin's own button and hotkey are clean from the start.
 - The Screenshot plugin itself is never paused.
 - Plugins are only stopped and started. Their settings are never changed, and anything still
   paused when the client closes is back as normal on the next launch.
