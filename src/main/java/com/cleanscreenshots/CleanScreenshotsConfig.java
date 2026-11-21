@@ -78,8 +78,7 @@ public interface CleanScreenshotsConfig extends Config
 	@ConfigItem(
 		keyName = "showButton",
 		name = "Show title bar button",
-		description = "Show the clean screenshot camera in the title bar.<br>"
-			+ "Right-click it to open the screenshot folder.",
+		description = "Show the clean screenshot camera in the title bar",
 		section = buttonSection,
 		position = 1
 	)
