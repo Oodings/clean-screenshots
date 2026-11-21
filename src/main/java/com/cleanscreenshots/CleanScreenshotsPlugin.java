@@ -1,6 +1,5 @@
 package com.cleanscreenshots;
 
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.inject.Provides;
 import java.awt.Color;
@@ -63,7 +62,6 @@ import net.runelite.client.ui.NavigationButton;
 import net.runelite.client.util.HotkeyListener;
 import net.runelite.client.util.ImageCapture;
 import net.runelite.client.util.ImageUtil;
-import net.runelite.client.util.LinkBrowser;
 import net.runelite.client.util.Text;
 
 @Slf4j
@@ -218,7 +216,6 @@ public class CleanScreenshotsPlugin extends Plugin
 			.tooltip("Take clean screenshot")
 			.icon(cameraIcon())
 			.onClick(() -> onEdt(this::manualScreenshot))
-			.popup(ImmutableMap.of("Open screenshot folder...", () -> LinkBrowser.open(SCREENSHOT_DIR.toString())))
 			.build();
 		if (config.showButton())
 		{
